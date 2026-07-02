@@ -7,3 +7,7 @@ __pycache__/
 *.pem
 credentials
 .DS_Store
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/lambda_function.zip
