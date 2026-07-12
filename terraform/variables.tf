@@ -15,3 +15,18 @@ variable "instance_type" {
   type        = string
   default     = "t3.micro"
 }
+
+variable "billing_alert_email" {
+  description = "Email for SNS notifications"
+  type        = string
+  default     = ""
+}
+
+variable "billing_alarm_thresholds" {
+  description = "Map of alarm label to cost threshold in USD"
+  type        = map(number)
+  default = {
+    warning  = 5.0
+    critical = 10.0
+  }
+}
