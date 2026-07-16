@@ -20,7 +20,9 @@ with IAM best practices.
 ## Project Structure
 multi-cloud-cost-optimization-tracker/ 
 ├── README.md 
-├── week1-notes.md 
+├── requirements.txt          ← here
+├── scripts/
+│   └── fetch_cost_explorer.py
 ├── terraform/ 
 ├── scripts/ 
 ├── docs/ 

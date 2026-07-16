@@ -11,3 +11,4 @@ terraform/.terraform/
 terraform/*.tfstate
 terraform/*.tfstate.*
 terraform/lambda_function.zip
+terraform/terraform.tfvars
