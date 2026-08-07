@@ -57,13 +57,21 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
 }
 
 resource "aws_lambda_function" "cost_tracker_lambda" {
-  function_name = "${var.project_name}-hello"
+  function_name = "${var.project_name}-monthly-report"
   role          = aws_iam_role.lambda_role.arn
-  handler       = "index.handler"
+  handler       = "fetch_cost_explorer.handler"
   runtime       = "python3.12"
+  timeout       = 30
+
 
   filename         = data.archive_file.lambda_zip.output_path
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+
+  environment {
+    variables = {
+      SNS_TOPIC_ARN = aws_sns_topic.billing_alerts.arn
+    }
+  }
 
   tags = {
     Project = var.project_name
@@ -72,18 +80,29 @@ resource "aws_lambda_function" "cost_tracker_lambda" {
 
 data "archive_file" "lambda_zip" {
   type        = "zip"
+  source_file = "${path.module}/../scripts/fetch_cost_explorer.py"
   output_path = "${path.module}/lambda_function.zip"
-
-  source {
-    content  = <<EOF
-def handler(event, context):
-    return {
-        'statusCode': 200,
-        'body': 'Cost tracker lambda is running'
-    }
-EOF
-    filename = "index.py"
-  }
 }
 
 data "aws_caller_identity" "current" {}
+
+
+resource "aws_cloudwatch_event_rule" "monthly_cost_report" {
+  name                = "${var.project_name}-monthly-cost-report"
+  description         = "Trigger monthly AWS cost report Lambda"
+  schedule_expression = "cron(0 9 1 * ? *)" # 09:00 UTC on the 1st of each month
+}
+
+resource "aws_cloudwatch_event_target" "monthly_cost_report_lambda" {
+  rule      = aws_cloudwatch_event_rule.monthly_cost_report.name
+  target_id = "monthly-cost-report-lambda"
+  arn       = aws_lambda_function.cost_tracker_lambda.arn
+}
+
+resource "aws_lambda_permission" "allow_eventbridge_monthly_report" {
+  statement_id  = "AllowExecutionFromEventBridge"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.cost_tracker_lambda.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.monthly_cost_report.arn
+}
