@@ -30,3 +30,9 @@ variable "billing_alarm_thresholds" {
     critical = 10.0
   }
 }
+
+variable "ec2_shutdown_dry_run" {
+  description = "If true, Lambda reports idle instances but does not stop them"
+  type        = bool
+  default     = true
+}

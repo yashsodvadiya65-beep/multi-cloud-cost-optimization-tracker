@@ -56,3 +56,44 @@ resource "aws_iam_role_policy" "lambda_cost_report" {
     ]
   })
 }
+
+resource "aws_iam_role_policy" "lambda_ec2_autoshutdown" {
+  name = "${var.project_name}-lambda-ec2-autoshutdown"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "FindRunningOptedInInstances"
+        Effect   = "Allow"
+        Action   = ["ec2:DescribeInstances"]
+        Resource = "*"
+      },
+      {
+        Sid      = "ReadCpuMetrics"
+        Effect   = "Allow"
+        Action   = ["cloudwatch:GetMetricStatistics"]
+        Resource = "*"
+      },
+      {
+        Sid      = "StopInstances"
+        Effect   = "Allow"
+        Action   = ["ec2:StopInstances"]
+        Resource = "*"
+        # Optional extra safety: only instances with AutoShutdown=true
+        Condition = {
+          StringEquals = {
+            "ec2:ResourceTag/AutoShutdown" = "true"
+          }
+        }
+      },
+      {
+        Sid      = "NotifyShutdown"
+        Effect   = "Allow"
+        Action   = ["sns:Publish"]
+        Resource = aws_sns_topic.billing_alerts.arn
+      }
+    ]
+  })
+}

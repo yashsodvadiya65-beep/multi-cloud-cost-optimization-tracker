@@ -32,8 +32,9 @@ resource "aws_instance" "cost_tracker_ec2" {
   instance_type = var.instance_type
 
   tags = {
-    Name    = "${var.project_name}-ec2"
-    Project = var.project_name
+    Name         = "${var.project_name}-ec2"
+    Project      = var.project_name
+    AutoShutdown = "true"
   }
 }
 
@@ -105,4 +106,51 @@ resource "aws_lambda_permission" "allow_eventbridge_monthly_report" {
   function_name = aws_lambda_function.cost_tracker_lambda.function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.monthly_cost_report.arn
+}
+
+data "archive_file" "ec2_shutdown_zip" {
+  type        = "zip"
+  source_file = "${path.module}/../scripts/ec2_auto_shutdown.py"
+  output_path = "${path.module}/ec2_auto_shutdown.zip"
+}
+
+resource "aws_lambda_function" "ec2_auto_shutdown" {
+  function_name    = "${var.project_name}-ec2-auto-shutdown"
+  role             = aws_iam_role.lambda_role.arn
+  handler          = "ec2_auto_shutdown.handler"
+  runtime          = "python3.12"
+  timeout          = 60
+  filename         = data.archive_file.ec2_shutdown_zip.output_path
+  source_code_hash = data.archive_file.ec2_shutdown_zip.output_base64sha256
+
+  environment {
+    variables = {
+      SNS_TOPIC_ARN    = aws_sns_topic.billing_alerts.arn
+      CPU_THRESHOLD    = "5.0"
+      LOOKBACK_MINUTES = "60"
+      DRY_RUN          = "false" # flip to "false" after a successful dry run
+    }
+  }
+
+  tags = { Project = var.project_name }
+}
+
+resource "aws_cloudwatch_event_rule" "ec2_auto_shutdown" {
+  name                = "${var.project_name}-ec2-auto-shutdown"
+  description         = "Stop unused opted-in EC2 instances"
+  schedule_expression = "rate(1 hour)"
+}
+
+resource "aws_cloudwatch_event_target" "ec2_auto_shutdown_lambda" {
+  rule      = aws_cloudwatch_event_rule.ec2_auto_shutdown.name
+  target_id = "ec2-auto-shutdown-lambda"
+  arn       = aws_lambda_function.ec2_auto_shutdown.arn
+}
+
+resource "aws_lambda_permission" "allow_eventbridge_ec2_shutdown" {
+  statement_id  = "AllowExecutionFromEventBridge"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.ec2_auto_shutdown.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.ec2_auto_shutdown.arn
 }
