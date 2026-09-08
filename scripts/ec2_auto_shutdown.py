@@ -83,7 +83,7 @@ def handler(event, context):
     ]
     message = "\n".join(lines)
 
-    if SNS_TOPIC_ARN:
+    if SNS_TOPIC_ARN and stopped:
         boto3.client("sns").publish(
             TopicArn=SNS_TOPIC_ARN,
             Subject="EC2 Auto-Shutdown Report",

@@ -154,3 +154,33 @@ resource "aws_lambda_permission" "allow_eventbridge_ec2_shutdown" {
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.ec2_auto_shutdown.arn
 }
+
+resource "aws_s3_bucket_lifecycle_configuration" "cost_tracker_glacier" {
+  bucket = aws_s3_bucket.cost_tracker_bucket.id
+
+  # Versioning should exist before lifecycle rules that mention noncurrent versions
+  depends_on = [aws_s3_bucket_versioning.cost_tracker_versioning]
+
+  rule {
+    id     = "move-old-objects-to-glacier"
+    status = "Enabled"
+
+    # Required by AWS provider 5.x even when applying to the whole bucket
+    filter {}
+
+    transition {
+      days          = var.s3_glacier_transition_days
+      storage_class = "GLACIER"
+    }
+
+    noncurrent_version_transition {
+      noncurrent_days = var.s3_noncurrent_glacier_days
+      storage_class   = "GLACIER"
+    }
+
+    # Cheap hygiene: drop abandoned multipart uploads
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+}

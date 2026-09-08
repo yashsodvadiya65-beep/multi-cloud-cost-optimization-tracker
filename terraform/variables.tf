@@ -36,3 +36,15 @@ variable "ec2_shutdown_dry_run" {
   type        = bool
   default     = true
 }
+
+variable "s3_glacier_transition_days" {
+  description = "Days before current objects move to Glacier"
+  type        = number
+  default     = 90
+}
+
+variable "s3_noncurrent_glacier_days" {
+  description = "Days before old object versions move to Glacier"
+  type        = number
+  default     = 30
+}

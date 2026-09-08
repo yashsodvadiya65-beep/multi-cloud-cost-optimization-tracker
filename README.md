@@ -49,3 +49,9 @@ Automated flow:
   - Opt-in tag: AutoShutdown=true
   - Idle = average CPU < 5% over 60 minutes
   - DRY_RUN first, then real stop
+
+## Current capability: S3 Glacier lifecycle
+`Old objects in the cost-tracker bucket are archived automatically:`
+- Current objects → Glacier after 90 days
+- Noncurrent versions → Glacier after 30 days
+- Incomplete multipart uploads aborted after 7 days
